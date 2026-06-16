@@ -7,9 +7,25 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
   const lenisRef = useRef<Lenis | null>(null);
 
   useEffect(() => {
+    // Home always opens at the hero — runs even for reduced-motion users (who
+    // skip Lenis below). Belt-and-braces with the inline parse-time script in
+    // layout.tsx: stop native scroll restoration and re-pin to the top on every
+    // pageshow (normal reload AND bfcache back/forward).
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+    const pinTop = () => {
+      window.scrollTo(0, 0);
+      lenisRef.current?.scrollTo(0, { immediate: true });
+    };
+    pinTop();
+    window.addEventListener("pageshow", pinTop);
+
     // check user preference for reduced motion
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    if (reduced) return;
+    if (reduced) {
+      return () => window.removeEventListener("pageshow", pinTop);
+    }
 
     let targetLerp = 0.13;
     let currentLerp = 0.13;
@@ -32,12 +48,8 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
     lenisRef.current = lenis;
     (window as any).lenis = lenis; // Expose globally for other components (like scroll gates)
 
-    // Home always opens at the hero: stop the browser restoring a prior scroll
-    // position on reload, and pin both the window and Lenis to the very top.
-    if ("scrollRestoration" in window.history) {
-      window.history.scrollRestoration = "manual";
-    }
-    window.scrollTo(0, 0);
+    // Lenis now exists — pin it to the top too (pinTop above ran before it was
+    // created, so it only reset the window then).
     lenis.scrollTo(0, { immediate: true });
 
     // Detect wheel events dynamically to classify active input device type (passive).
@@ -134,6 +146,7 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
     document.addEventListener("click", handleAnchorClick);
 
     return () => {
+      window.removeEventListener("pageshow", pinTop);
       window.removeEventListener("wheel", handleWheelDetection);
       document.removeEventListener("click", handleAnchorClick);
       cancelAnimationFrame(rafId);

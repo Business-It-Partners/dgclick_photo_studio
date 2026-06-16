@@ -53,6 +53,15 @@ export default function RootLayout({
       className={`${fraunces.variable} ${inter.variable} ${spaceGrotesk.variable} ${archivo.variable}`}
     >
       <body>
+        {/* Always open at the hero. Runs synchronously during HTML parse —
+            before the browser's native scroll-restoration fires on load — so a
+            refresh can never land mid-page. SmoothScroll re-pins on pageshow. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "if('scrollRestoration' in history){history.scrollRestoration='manual';}window.scrollTo(0,0);",
+          }}
+        />
         <SmoothScroll>
           {children}
         </SmoothScroll>
